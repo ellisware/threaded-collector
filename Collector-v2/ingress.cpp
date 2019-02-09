@@ -5,6 +5,7 @@
 
 #include "ingress.h"
 
+namespace logging = boost::log;
 
 void wait(int seconds)
 {
@@ -13,12 +14,17 @@ void wait(int seconds)
 
 void collectionThread(std::vector<std::shared_ptr<Datum>> datumList)
 {
-	for (int i = 0; i < 5; ++i)
+	BOOST_FOREACH(std::shared_ptr<Datum> dm, datumList)
 	{
-		wait(1);
-		std::cout << datumList[0]->name();
-		std::cout << i << '\n';
+		BOOST_LOG_TRIVIAL(trace) << boost::format("Attempting to collect:  %1%") % dm->name();
+		try {
+			std::lock_guard<std::mutex> lck(dm->mtx);
+		}
+		catch (std::logic_error&) {
+			BOOST_LOG_TRIVIAL(trace) << boost::format("Failed to lock:  %1%") % dm->name();
+		}
 
-		datumList[0]->collect();
+		std::cout << "Ingress Thread";
+		std::cout << dm->name();
 	}
 }
