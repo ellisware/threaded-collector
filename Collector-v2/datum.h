@@ -1,7 +1,14 @@
 #pragma once
 #include <boost/any.hpp>
+#include <boost/log/core.hpp>
+#include <boost/log/trivial.hpp>
+#include <boost/log/expressions.hpp>
+#include <boost/format.hpp>
 
 #include <mutex>
+
+
+namespace logging = boost::log;
 
 struct Datum
 {
@@ -33,12 +40,7 @@ struct Measurement : Datum
 	Measurement(std::string name) : Datum(name) {};
 
 	void collect() {
-		try {
-			std::lock_guard<std::mutex> lck(mtx);
-		}
-		catch (std::logic_error&) {
-			std::cout << "[exception caught]\n";
-		}
+		
 
 		int c = 0;
 		c += 1;
