@@ -1,11 +1,17 @@
 #include <boost/thread.hpp>
 #include <boost/chrono.hpp>
+#include <boost/foreach.hpp>
+#include <boost/log/core.hpp>
+#include <boost/log/trivial.hpp>
+#include <boost/log/expressions.hpp>
+#include <boost/format.hpp>
 
 #include <iostream>
 
 #include "ingress.h"
 
 namespace logging = boost::log;
+
 
 void wait(int seconds)
 {
