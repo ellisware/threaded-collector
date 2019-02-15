@@ -1,28 +1,28 @@
-# Data Collector Template
+# C++ Data Collector Template
 
-Data collection is a common task.  This is just a generic template to ingress data via a source such as a proprietary c++ device API, then make the data available via any number of standardized protocols (MQTT, Websocket, OPC, etc)
+This is written for industrial controls, sensors, and equipment that have a c++ API.  This template allows programming against the API to collect the data from the device, then egress the data to a more indsutrial standard such as MTConnect and/or OP.  In addition the data can egress in more standard information technology such as a websocket, MQTT, HTTP post, etc.
 
-Overall Archetecture:
+## Getting Started
 
-Ingress Thread (Data Collection) -> Main Thread (Data Store)  -> Egress Threads (Data Consumer)
+Currently only the Visual Studio build is being developed.  Linux build testing to follow.
+
+### Prerequisites
+
+This template rely's very heavily on the BOOST c++ libraries.  Prerequisits are listed in main.cpp
 
 
-Note: Requires Boost Packages:
+### Installing
 
-PM> Install-Package boost
+N/A - Still in development
 
-PM> Install-Package boost_date_time-vc141
 
-PM> Install-Package boost_filesystem-vc141
+## Authors
 
-PM> Install-Package boost_log-vc141
+* **Mike Ellis** - *Initial work* 
 
-PM> Install-Package boost_system-vc141
+See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
 
-PM> Install-Package boost_thread-vc141
+## License
 
-PM> Install-Package boost_chrono-vc141
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
 
-PM> Install-Package boost_log_setup-vc141
-
-PM> Install-Package boost_atomic-vc141
