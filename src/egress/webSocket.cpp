@@ -27,7 +27,6 @@
 #include "webSocket.h"
 #include "constants.h"
 
-// Namespacing the log due to the high number of calls
 // Namespacing the websocket due to the high number of calls
 namespace websocket = boost::beast::websocket;  // from <boost/beast/websocket.hpp>
 using tcp = boost::asio::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
@@ -51,8 +50,7 @@ fail(boost::system::error_code ec, char const* what)
 class session : public std::enable_shared_from_this<session>
 {
 	websocket::stream<tcp::socket> ws_;
-	boost::asio::strand<
-		boost::asio::io_context::executor_type> strand_;
+	boost::asio::strand<boost::asio::io_context::executor_type> strand_;
 	boost::beast::multi_buffer buffer_;
 
 public:
@@ -81,9 +79,11 @@ public:
 	void
 		on_accept(boost::system::error_code ec)
 	{
-		if (ec)
-			return fail(ec, "accept");
+		if (ec) return fail(ec, "accept");
 
+		//***************************************
+		// Once a new connection is established
+		// Send all values to the client
 		//***************************************
 		BOOST_FOREACH(std::shared_ptr<Datum> dm, mDatumList)
 		{
