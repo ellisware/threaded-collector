@@ -27,6 +27,7 @@
 #include "webSocket.h"
 #include "constants.h"
 
+
 // Namespacing the websocket due to the high number of calls
 namespace websocket = boost::beast::websocket;  // from <boost/beast/websocket.hpp>
 using tcp = boost::asio::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
@@ -38,15 +39,19 @@ using tcp = boost::asio::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
 // Naming the shared_ptr and vector to improve readability
 std::vector<std::shared_ptr<Datum>> mDatumList;
 
+void wait2(int seconds)
+{
+	boost::this_thread::sleep_for(boost::chrono::seconds{ seconds });
+}
 
 // Report a failure
-void
-fail(boost::system::error_code ec, char const* what)
+void fail(boost::system::error_code ec, char const* what)
 {
 	BOOST_LOG_TRIVIAL(fatal) << "Websocket failure:" << ec.message();
 }
 
-// Echoes back all received WebSocket messages
+
+
 class session : public std::enable_shared_from_this<session>
 {
 	websocket::stream<tcp::socket> ws_;
@@ -56,28 +61,21 @@ class session : public std::enable_shared_from_this<session>
 public:
 	// Take ownership of the socket
 	explicit
-		session(tcp::socket socket)
-		: ws_(std::move(socket))
-		, strand_(ws_.get_executor())
+		session(tcp::socket socket)	: ws_(std::move(socket)), strand_(ws_.get_executor())
 	{
 	}
 
 	// Start the asynchronous operation
-	void
-		run()
+	void run()
 	{
 		// Accept the websocket handshake
 		ws_.async_accept(
 			boost::asio::bind_executor(
 				strand_,
-				std::bind(
-					&session::on_accept,
-					shared_from_this(),
-					std::placeholders::_1)));
+				std::bind( &session::on_accept,	shared_from_this(), std::placeholders::_1)));	
 	}
 
-	void
-		on_accept(boost::system::error_code ec)
+	void on_accept(boost::system::error_code ec)
 	{
 		if (ec) return fail(ec, "accept");
 
@@ -85,43 +83,47 @@ public:
 		// Once a new connection is established
 		// Send all values to the client
 		//***************************************
-		BOOST_FOREACH(std::shared_ptr<Datum> dm, mDatumList)
+
+		//while (ec != websocket::error::closed)
+		while(1)
 		{
-			BOOST_LOG_TRIVIAL(trace) << "Socket Connected:";
+			BOOST_FOREACH(std::shared_ptr<Datum> dm, mDatumList)
+			{
+				std::string contents = DATUM_ERROR_STRING;
 
-			try {
-				std::lock_guard<std::mutex> lck(dm->mtx);
+				bool changed = false;
+				
+				try {
+					std::lock_guard<std::mutex> lck(dm->mtx); 
+					changed = dm->changed();
+					contents = boost::str(boost::format("{ %1% : %2% }") % dm->name() % dm->value());
+				}
+				catch (std::logic_error&) {
+					BOOST_LOG_TRIVIAL(trace) << boost::format("Failed to lock:  %1%") % dm->name();
+				}
+				
+				if (changed) {
+					// Commit the buffer size
+					size_t n = buffer_copy(buffer_.prepare(contents.size()), boost::asio::buffer(contents));
+					buffer_.commit(n);
+
+					// Write the buffer (async causes thread issues)
+					ws_.write(buffer_.data());
+
+					// Clear the buffer (otherwise it concatenates)
+					buffer_.consume(buffer_.size());
+				}
+				
 			}
-			catch (std::logic_error&) {
-				BOOST_LOG_TRIVIAL(trace) << boost::format("Failed to lock:  %1%") % dm->name();
-			}
-
-			//boost::beast::multi_buffer buffer_;
-			std::string const contents = dm->name();
-			size_t n = buffer_copy(buffer_.prepare(contents.size()), boost::asio::buffer(contents));
-			buffer_.commit(n);
-
-			ws_.async_write(
-				buffer_.data(),
-				boost::asio::bind_executor(
-					strand_,
-					std::bind(
-						&session::on_write,
-						shared_from_this(),
-						std::placeholders::_1,
-						std::placeholders::_2)));
 
 		}
+		
 		//****************************************
 
-
-
-		// Read a message
-		//do_read();
 	}
 
-	void
-		do_read()
+
+	void do_read()
 	{
 		// Read a message into our buffer
 		ws_.async_read(
@@ -135,10 +137,8 @@ public:
 					std::placeholders::_2)));
 	}
 
-	void
-		on_read(
-			boost::system::error_code ec,
-			std::size_t bytes_transferred)
+
+	void on_read( boost::system::error_code ec,	std::size_t bytes_transferred)
 	{
 		boost::ignore_unused(bytes_transferred);
 
@@ -146,8 +146,7 @@ public:
 		if (ec == websocket::error::closed)
 			return;
 
-		if (ec)
-			fail(ec, "read");
+		if (ec)	fail(ec, "read");
 
 		// Echo the message
 		ws_.text(ws_.got_text());
@@ -162,21 +161,18 @@ public:
 					std::placeholders::_2)));
 	}
 
-	void
-		on_write(
-			boost::system::error_code ec,
-			std::size_t bytes_transferred)
+	void on_write( boost::system::error_code ec, std::size_t bytes_transferred)
 	{
 		boost::ignore_unused(bytes_transferred);
 
-		if (ec)
-			return fail(ec, "write");
+		if (ec)	return fail(ec, "write");
 
 		// Clear the buffer
 		buffer_.consume(buffer_.size());
 
 		// Do another read
 		do_read();
+
 	}
 };
 
@@ -270,14 +266,6 @@ public:
 };
 
 
-
-
-void wait2(int seconds)
-{
-	boost::this_thread::sleep_for(boost::chrono::seconds{ seconds });
-}
-
-
 void webSocketThread(std::vector<std::shared_ptr<Datum>> datumList)
 {
 
@@ -297,11 +285,7 @@ void webSocketThread(std::vector<std::shared_ptr<Datum>> datumList)
 	std::vector<std::thread> v;
 	v.reserve(threads - 1);
 	for (auto i = threads - 1; i > 0; --i)
-		v.emplace_back(
-			[&ioc]
-	{
-		ioc.run();
-	});
+		v.emplace_back(	[&ioc]	{ ioc.run(); });
 	ioc.run();
 
 }
