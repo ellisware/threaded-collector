@@ -31,9 +31,10 @@ public:
 	virtual ~Datum() = default;
 
 	std::string name() { return mName; };
-	std::string value() { return mValue; };
-	void setValue(std::string v) { mValue = v; return; };
+	std::string value() { mChanged = false; return mValue; };
+	void setValue(std::string v) { setChanged();  mValue = v; return; };
 	bool changed() { return mChanged; };
+	void setChanged() { mChanged = true; };
 	int collectionMissed() { return mMissed; };
 
 	virtual void pre_collect() = 0;
@@ -63,7 +64,7 @@ public:
 		// Simple Demonstration
 		// Increment the internal member variable representing the value
 		mMeasure += 1;
-
+		setChanged();
 	}
 
 
@@ -71,8 +72,6 @@ public:
 
 		// Set the collected value as a string
 		setValue(std::to_string(mMeasure));
-		BOOST_LOG_TRIVIAL(trace) << boost::format("Collected: %1% / %2%") % name() % value();
-
 	}
 
 	void post_collect() {
